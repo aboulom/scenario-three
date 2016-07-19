@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.0.0"
+       xsi:schemaLocation="
+       http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd
+       http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd">
+ 
+    <bean id="hashmap" class="com.opensourcearchitect.HashmapProcessor"/>
+   
+    <bean id="jmsTransactionManager" class="org.springframework.jms.connection.JmsTransactionManager">
+  	  <property name="connectionFactory" ref="jmsConnectionFactory" />
+	</bean>
+
+	<bean id="jmsConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+	  <property name="brokerURL" value="tcp://localhost:61616"/>
+	  <property name="userName" value="admin" />
+	  <property name="password" value="admin" />
+	</bean>
+
+   <bean id="required" class="org.apache.camel.spring.spi.SpringTransactionPolicy">
+  	 <property name="transactionManager" ref="jmsTransactionManager"/>
+   	 <property name="propagationBehaviorName" value="PROPAGATION_REQUIRED"/>
+   </bean>
+
+   <camelContext xmlns="http://camel.apache.org/schema/blueprint">
+	   <!--
+	   <onException>
+		<exception>java.sql.SQLException</exception>
+		<redeliveryPolicy maximumRedeliveries="1" />
+		<handled>
+		  <constant>true</constant>
+		</handled>
+		<log message="Transaction Rollback: Error writing to database"/>
+	   </onException>
+	   -->
+	   <route id="route1">
+			<from uri="file:scenario-three/input"/>
+			<transacted ref="required"/>
+			<to uri="file:scenario-three/output"/>
+	   </route>
+	   <route id="route2">
+			<from uri="file:scenario-three/output?moveFailed=.fail&amp;noop=true"/>
+			<transacted ref="required"/>
+			<to uri="bean:hashmap?method=store"/>
+	   </route>
+	</camelContext>
+</blueprint>
